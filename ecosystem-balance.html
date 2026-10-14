@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>생태계평형 시뮬레이션 | 통합과학2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#3f5b37; --cream:#f8f0d8; --paper:#fffaf0;
+  --label:#50692d; --orange:#f5922f; --red:#e03c31; --yellow:#ffe27a;
+  --ink:#2f3a2a; --muted:#6b7a62; --up:#e03c31; --down:#2f6fb5; --mix:#8a4fbf;
+  --chalk:#f4f1e6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--cream);color:var(--ink);font-family:"Gowun Dodum","Tlab 모던라운드","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  display:flex;flex-direction:column;min-height:100vh;font-size:18px}
+h1,.tab,.btn,.big,.stepnum{font-family:"Jua","Tlab 모던라운드","Noto Sans KR",sans-serif;font-weight:400}
+header{display:flex;align-items:center;gap:14px;padding:10px 18px;flex-wrap:wrap}
+header h1{margin:0;font-size:clamp(20px,2.4vw,30px);color:var(--label)}
+header .sub{font-size:14px;color:var(--muted)}
+nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.tab{border:none;background:#efe3bf;color:var(--label);padding:9px 18px;border-radius:999px;font-size:clamp(15px,1.7vw,20px);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--orange);color:#fff}
+main{flex:1;padding:0 14px 14px;display:flex}
+.board{flex:1;background:var(--board);border:10px solid #e6d3a6;border-radius:18px;padding:16px 18px;color:var(--chalk);display:none;gap:16px;min-height:0}
+.board.on{display:grid}
+.panel{background:var(--paper);color:var(--ink);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.btn{border:none;border-radius:12px;padding:10px 16px;font-size:clamp(15px,1.6vw,19px);cursor:pointer;background:var(--orange);color:#fff}
+.btn.ghost{background:#e9dcb7;color:var(--label)}
+.btn:disabled{opacity:.4;cursor:default}
+.note{font-size:13px;color:var(--muted)}
+.big{font-size:clamp(18px,2vw,25px);color:var(--yellow);margin:0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stepnum{font-size:20px;color:var(--label);min-width:90px;text-align:center}
+.up-t{color:var(--up);font-weight:700}.down-t{color:var(--down);font-weight:700}.mix-t{color:var(--mix);font-weight:700}
+
+/* tab1 */
+#t1{grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr)}
+#web{width:100%;height:100%;min-height:380px;background:#e9f0d9;border-radius:14px}
+.node rect{fill:#fff;stroke:#7a8f5e;stroke-width:2}
+.node text{font-family:"Jua","Noto Sans KR",sans-serif;font-size:19px;fill:var(--ink);text-anchor:middle;dominant-baseline:middle}
+.node{cursor:pointer}
+.node.gone rect{fill:#ddd;stroke:#999;stroke-dasharray:5 4}
+.node.gone text{fill:#999;text-decoration:line-through}
+.node.up rect{fill:#fde4e1;stroke:var(--up);stroke-width:3}
+.node.down rect{fill:#e1ecfa;stroke:var(--down);stroke-width:3}
+.node.mix rect{fill:#efe2fa;stroke:var(--mix);stroke-width:3}
+.node.now rect{stroke-width:6}
+.edge{stroke:#b9a46a;stroke-width:2.2;fill:none;opacity:.8}
+.edge.dead{stroke:#bbb;stroke-dasharray:4 4;opacity:.45}
+.edge.hot{stroke:var(--orange);stroke-width:4;opacity:1}
+#stepBox{font-size:18px;line-height:1.6;overflow:auto;flex:1;background:#fff;border-radius:12px;padding:10px 12px}
+#stepBox p{margin:0 0 6px}
+.legend1{font-size:14px;color:var(--muted)}
+
+/* tab2 */
+#t2{grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr)}
+#pyrWrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:340px}
+.lvl{display:flex;align-items:center;gap:10px;width:100%;justify-content:center}
+.lvl .name{width:110px;text-align:right;font-family:Jua,sans-serif;font-size:20px;color:var(--chalk)}
+.lvl .bar{border-radius:12px;display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:2px;padding:6px;transition:width .7s, background .4s;min-height:64px;border:3px solid transparent}
+.lvl .bar.hl{border-color:var(--orange)}
+.lvl .cnt{width:120px;font-family:Jua,sans-serif;font-size:20px;color:var(--yellow)}
+.ico{font-size:28px;line-height:1.05}
+.bar .lab{font-family:Jua,sans-serif;font-size:24px;color:var(--ink)}
+.trend{font-family:Jua,sans-serif;font-size:18px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.step{flex:1;min-width:80px;background:#e9dcb7;color:var(--label);border-radius:10px;padding:6px 8px;font-size:14px;text-align:center}
+.step.on{background:var(--orange);color:#fff}
+#stepText{font-size:19px;line-height:1.55;min-height:3.2em}
+.cards{display:flex;gap:8px;flex-wrap:wrap}
+.card{background:#fff;border:2px solid #d9c68f;border-radius:10px;padding:7px 10px;font-size:15px;cursor:pointer;user-select:none}
+.card.sel{outline:3px solid var(--orange)}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.slot{min-height:58px;border:2px dashed #b9a46a;border-radius:10px;padding:4px;font-size:14px;display:flex;align-items:center;justify-content:center;text-align:center;background:#fffdf6;cursor:pointer}
+.slot.ok{border-color:#3e8e4f;background:#e8f5e9}.slot.no{border-color:var(--red);background:#fdecea}
+
+/* tab3 */
+#t3{grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr)}
+#chart{width:100%;height:auto;background:#fffdf6;border-radius:14px}
+input[type=range]{width:100%;accent-color:var(--orange)}
+.legend span{display:inline-flex;align-items:center;gap:6px;margin-right:12px;font-size:16px}
+.legend i{width:18px;height:5px;border-radius:2px;display:inline-block}
+.q{background:#fff;border-radius:10px;padding:8px 10px;font-size:16px}
+.q summary{cursor:pointer;font-weight:700;color:var(--label)}
+#year{font-family:Jua,sans-serif;font-size:28px;color:var(--label)}
+footer{font-size:12px;color:var(--muted);padding:0 18px 8px}
+@media (max-width:860px){#t1,#t2,#t3{grid-template-columns:1fr}.slots{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>생태계평형 시뮬레이션</h1>
+    <div class="sub">통합과학2 · Ⅱ. 환경과 에너지 · 1. 생태계와 환경 · 02. 생태계평형</div>
+  </div>
+  <nav role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-t="t1">① 먹이그물 실험</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="t2">② 평형의 회복</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="t3">③ 카이바브 고원</button>
+  </nav>
+</header>
+
+<main>
+<!-- ============ TAB 1 ============ -->
+<section class="board on" id="t1">
+  <svg id="web" viewBox="0 0 760 520" aria-label="먹이그물"></svg>
+  <div class="panel">
+    <div class="row">
+      <button class="btn" id="mWeb">먹이그물</button>
+      <button class="btn ghost" id="mChain">먹이사슬 하나만</button>
+      <button class="btn ghost" id="reset1">처음으로</button>
+    </div>
+    <div><b>생물을 눌러 생태계에서 없애 보자.</b><br><span class="legend1">화살표: 먹이 → 먹는 생물 · <span class="up-t">빨강 ▲ 늘어남</span> · <span class="down-t">파랑 ▼ 줄어듦</span> · <span class="mix-t">보라 ◆ 엇갈림</span></span></div>
+    <div class="row">
+      <button class="btn ghost" id="prev1" disabled>◀ 이전</button>
+      <span class="stepnum" id="stepNum">-</span>
+      <button class="btn" id="next1" disabled>다음 ▶</button>
+    </div>
+    <div id="stepBox"></div>
+    <div class="note">교과서 76쪽 먹이그물을 단순화한 모형이에요. 한 생물이 처음 받은 영향만 표시해요. 실제 생태계에서는 변화의 크기와 순서가 더 복잡해요.</div>
+  </div>
+</section>
+
+<!-- ============ TAB 2 ============ -->
+<section class="board" id="t2">
+  <div style="display:flex;flex-direction:column;min-height:0">
+    <p class="big">벼 → 메뚜기 → 참새: 평형이 깨져도 먹이 관계에 의해 다시 회복돼요</p>
+    <div class="row" style="margin-bottom:6px">
+      <button class="btn" id="vOrg">생물로 보기</button>
+      <button class="btn ghost" id="vPyr">피라미드로 보기</button>
+      <button class="btn ghost" id="vCnt">개체수 숫자 보기</button>
+    </div>
+    <div id="pyrWrap"></div>
+  </div>
+  <div class="panel">
+    <div class="row">
+      <button class="btn ghost" id="prev2" disabled>◀ 이전</button>
+      <span class="stepnum" id="stepNum2">평형</span>
+      <button class="btn" id="next2">다음 ▶</button>
+      <button class="btn ghost" id="reset2">처음으로</button>
+    </div>
+    <div class="steps" id="steps">
+      <div class="step">① 메뚜기↑</div><div class="step">② 벼↓ 참새↑</div>
+      <div class="step">③ 메뚜기↓</div><div class="step">④ 평형 회복</div>
+    </div>
+    <div id="stepText"></div>
+    <div class="note">개체수는 개념을 보여 주기 위한 예시 숫자예요. 생물 그림을 직접 세어 보자.</div>
+    <hr style="border:none;border-top:1px dashed #d9c68f;width:100%;margin:0">
+    <b style="color:var(--label)">순서 맞히기 — 카드를 고른 뒤 빈칸을 눌러 넣어 보자</b>
+    <div class="cards" id="cards"></div>
+    <div class="slots" id="slots"></div>
+    <div class="row"><button class="btn ghost" id="check">정답 확인</button><span id="quizMsg" style="font-size:16px"></span></div>
+  </div>
+</section>
+
+<!-- ============ TAB 3 ============ -->
+<section class="board" id="t3">
+  <div style="display:flex;flex-direction:column;min-height:0">
+    <p class="big">카이바브 고원: 사슴을 보호하려고 늑대 사냥을 허용했더니?</p>
+    <canvas id="chart" width="900" height="470"></canvas>
+    <div class="legend" style="margin-top:6px">
+      <span><i style="background:#2f6fb5"></i>늑대</span>
+      <span><i style="background:#e0782f"></i>사슴</span>
+      <span><i style="background:#3e8e4f"></i>식물군집의 양(상대값)</span>
+    </div>
+  </div>
+  <div class="panel">
+    <div>1905년 카이바브 고원에는 늑대 약 400마리, 사슴 약 3800마리가 살았어요. 사슴을 보호하려고 사슴의 포식자인 늑대 사냥을 허용했어요.</div>
+    <label><b>늑대 사냥 강도</b> <span id="hv">강함</span>
+      <input type="range" id="hunt" min="0" max="3" step="1" value="3"></label>
+    <div class="row">
+      <button class="btn" id="play">▶ 재생</button>
+      <button class="btn ghost" id="back3">◀ 1년</button>
+      <button class="btn ghost" id="fwd3">1년 ▶</button>
+      <button class="btn ghost" id="reset3">처음으로</button>
+    </div>
+    <div id="year">1905년</div>
+    <input type="range" id="yr" min="1905" max="1932" step="1" value="1905" aria-label="연도">
+    <details class="q"><summary>Q1. 1905~1920년 사슴의 개체수가 늘어난 까닭은?</summary>늑대 사냥으로 사슴을 잡아먹는 <b>늑대의 개체수가 줄어</b> 사슴이 덜 잡아먹혔기 때문이에요.</details>
+    <details class="q"><summary>Q2. 1920~1930년 사슴의 개체수가 줄어든 까닭은?</summary>사슴이 급격히 늘면서 사슴의 먹이인 <b>식물군집의 양이 줄어</b> 먹이가 부족해졌기 때문이에요.</details>
+    <details class="q"><summary>Q3. 사냥 강도를 '없음'으로 바꾸면?</summary>늑대가 사슴의 수를 조절해 사슴과 식물의 양이 크게 변하지 않아요. 먹이 관계가 <b>생태계평형</b>을 유지해요.</details>
+    <div class="note">그래프는 원리를 보여 주는 단순 모형의 계산값이며 실제 측정값이 아니에요. 실제 자료는 교과서 78쪽 그래프를 참고하세요.</div>
+  </div>
+</section>
+</main>
+<footer>통합과학2 수업용 · 교과서 76~78쪽 내용을 바탕으로 만든 학습용 모형</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('.board').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t));
+  if(b.dataset.t==='t3') drawChart();
+});
+const josa=(w,a,b)=>{const c=w.charCodeAt(w.length-1)-44032;return w+((c>=0&&c<11172&&c%28)?a:b)};
+
+/* =================== TAB 1 : 먹이그물 (단계별 연쇄) =================== */
+const N={'매':[380,55],'올빼미':[540,175],'뱀':[200,150],'참새':[90,290],'개구리':[430,300],'쥐':[640,300],'두더지':[690,215],
+  '토끼':[270,330],'메뚜기':[430,420],'벼':[150,470],'강아지풀':[680,470]};
+const WEB=[['벼','참새'],['벼','메뚜기'],['벼','토끼'],['벼','쥐'],['강아지풀','메뚜기'],['강아지풀','토끼'],['강아지풀','쥐'],
+  ['메뚜기','참새'],['메뚜기','개구리'],['메뚜기','두더지'],['참새','뱀'],['참새','매'],['개구리','뱀'],['개구리','올빼미'],
+  ['쥐','뱀'],['쥐','올빼미'],['쥐','매'],['토끼','매'],['토끼','뱀'],['두더지','매'],['뱀','매'],['뱀','올빼미']];
+const CHAIN=[['벼','메뚜기'],['메뚜기','개구리'],['개구리','뱀'],['뱀','매']];
+const CHAINORDER=['벼','메뚜기','개구리','뱀','매'];
+let mode='web', removed=null, steps=[], cur=-1;
+const web=$('web');
+const edges=()=>mode==='web'?WEB:CHAIN;
+const nodesIn=()=>[...new Set(edges().flat())];
+const pos=n=>mode==='chain'?[380,470-CHAINORDER.indexOf(n)*100]:N[n];
+const live=()=>edges().filter(([a,b])=>a!==removed&&b!==removed);
+const preyOf=n=>live().filter(e=>e[1]===n).map(e=>e[0]);
+const predOf=n=>live().filter(e=>e[0]===n).map(e=>e[1]);
+
+function buildSteps(n){
+  const all=edges(), state={}, out=[];
+  // step 0
+  out.push({set:{},hot:[],text:[`<b>${josa(n,'이','가')}</b> 사라졌어요. 다음 ▶을 눌러 어떤 일이 일어나는지 살펴보자.`]});
+  // step 1: 직접 영향
+  let frontier={}, reasons={}, hot=[];
+  all.filter(e=>e[0]===n).forEach(([,p])=>{ // n을 먹던 포식자
+    frontier[p]=(frontier[p]||[]).concat('down'); hot.push(n+'>'+p);
+    const alt=preyOf(p);
+    (reasons[p]=reasons[p]||[]).push(alt.length? `먹이(${n}) 하나가 줄었지만 다른 먹이(${alt.join(', ')})가 있어 <span class="down-t">조금 줄어요</span>`
+      : `먹이가 모두 사라져 <span class="down-t">크게 줄어요</span>(사라질 위험)`);
+  });
+  all.filter(e=>e[1]===n).forEach(([q])=>{ // n에게 먹히던 피식자
+    frontier[q]=(frontier[q]||[]).concat('up'); hot.push(q+'>'+n);
+    const alt=predOf(q);
+    (reasons[q]=reasons[q]||[]).push(alt.length? `천적(${n}) 하나가 줄어 <span class="up-t">조금 늘어요</span> (남은 천적: ${alt.join(', ')})`
+      : `천적이 모두 사라져 <span class="up-t">크게 늘어요</span>`);
+  });
+  let k=1;
+  while(Object.keys(frontier).length && k<8){
+    const set={}, text=[];
+    Object.entries(frontier).forEach(([x,ds])=>{
+      const d= ds.every(v=>v==='up')?'up': ds.every(v=>v==='down')?'down':'mix';
+      set[x]=d; state[x]=d;
+      const cls=d==='up'?'up-t':d==='down'?'down-t':'mix-t';
+      const r=reasons[x]||[];
+      text.push(`<span class="${cls}">${x}</span> ${d==='mix'?'<span class="mix-t">◆ 늘어나는 원인과 줄어드는 원인이 함께 있어 변화가 엇갈려요</span> ('+r.join(' / ')+')':'— '+r.join(' / ')}`);
+    });
+    out.push({set,hot,text});
+    // 다음 단계 계산
+    const nf={}, nr={}, nh=[];
+    Object.entries(set).forEach(([x,d])=>{
+      if(d==='mix') return;
+      preyOf(x).forEach(f=>{ if(state[f]||f===removed) return;
+        const nd=d==='up'?'down':'up'; (nf[f]=nf[f]||[]).push(nd); nh.push(f+'>'+x);
+        (nr[f]=nr[f]||[]).push(d==='up'?`먹는 생물(${x})이 늘어 <span class="down-t">더 많이 먹혀 줄어요</span>`:`먹는 생물(${x})이 줄어 <span class="up-t">덜 먹혀 늘어요</span>`)});
+      predOf(x).forEach(p=>{ if(state[p]||p===removed) return;
+        (nf[p]=nf[p]||[]).push(d); nh.push(x+'>'+p);
+        (nr[p]=nr[p]||[]).push(d==='up'?`먹이(${x})가 늘어 <span class="up-t">늘어요</span>`:`먹이(${x})가 줄어 <span class="down-t">줄어요</span>`)});
+    });
+    frontier=nf; reasons=nr; hot=nh; k++;
+  }
+  const changed=Object.keys(state).length, total=nodesIn().length-1;
+  out.push({set:{},hot:[],final:true,text:[
+    `정리: ${josa(n,'이','가')} 사라지자 <b>${changed}종</b>(전체 ${total}종 중)이 차례로 영향을 받았어요.`,
+    mode==='chain'
+      ? '먹이사슬 하나만 있으면 대신할 먹이와 천적이 없어 변화가 그대로 위아래로 번져요.'
+      : '먹이그물이 복잡하면 다른 먹이·천적이 대신해 변화가 완화돼요 → 생태계평형이 더 잘 유지돼요. 하지만 생물 하나가 사라져도 많은 생물이 영향을 받는다는 것도 알 수 있어요.']});
+  return out;
+}
+function stateAt(i){ const s={}; for(let k=1;k<=i;k++) Object.assign(s,steps[k].set||{}); return s; }
+function draw1(){
+  const st=cur>=0?stateAt(cur):{}, nowSet=cur>=0?(steps[cur].set||{}):{}, hot=new Set(cur>=0?steps[cur].hot:[]);
+  let h=`<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b9a46a"/></marker><marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f5922f"/></marker></defs>`;
+  edges().forEach(([a,b])=>{
+    const [x1,y1]=pos(a),[x2,y2]=pos(b),dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L;
+    const sx=x1+ux*34,sy=y1+uy*22,ex=x2-ux*42,ey=y2-uy*28,mx=(sx+ex)/2-uy*18,my=(sy+ey)/2+ux*18;
+    const dead=a===removed||b===removed, isHot=hot.has(a+'>'+b);
+    h+=`<path class="edge ${dead?'dead':''} ${isHot?'hot':''}" d="M${sx} ${sy} Q${mx} ${my} ${ex} ${ey}" marker-end="url(#${isHot?'ahh':'ah'})"/>`;
+  });
+  nodesIn().forEach(n=>{
+    const [x,y]=pos(n), s=n===removed?'gone':(st[n]||''), now=nowSet[n]?'now':'';
+    const w=Math.max(76,n.length*24+34);
+    const b=s==='up'?' ▲':s==='down'?' ▼':s==='mix'?' ◆':'';
+    const col=s==='up'?'#e03c31':s==='down'?'#2f6fb5':'#8a4fbf';
+    h+=`<g class="node ${s} ${now}" data-n="${n}" tabindex="0"><rect x="${x-w/2}" y="${y-24}" width="${w}" height="48" rx="12"/><text x="${x}" y="${y+1}">${n}<tspan fill="${col}">${b}</tspan></text></g>`;
+  });
+  web.innerHTML=h;
+  web.querySelectorAll('.node').forEach(g=>{g.onclick=()=>pick(g.dataset.n);g.onkeydown=e=>{if(e.key==='Enter')pick(g.dataset.n)}});
+  // panel
+  if(cur<0){ $('stepBox').innerHTML=`<p>${mode==='web'?'먹이그물 상태예요. <b>참새</b>나 <b>올빼미</b>를 눌러 보자.':'먹이사슬 하나만 있는 상태예요. <b>개구리</b>를 눌러 먹이그물일 때와 비교해 보자.'}</p>`; $('stepNum').textContent='-'; }
+  else{
+    const last=steps.length-1;
+    $('stepNum').textContent= cur===0?'시작': steps[cur].final?'정리': `${cur}단계 / ${last-1}`;
+    $('stepBox').innerHTML=steps[cur].text.map(t=>`<p>${t}</p>`).join('');
+  }
+  $('prev1').disabled=cur<=0; $('next1').disabled=cur<0||cur>=steps.length-1;
+}
+function pick(n){ if(removed) return; removed=n; steps=buildSteps(n); cur=0; draw1(); }
+$('prev1').onclick=()=>{cur=Math.max(0,cur-1);draw1()};
+$('next1').onclick=()=>{cur=Math.min(steps.length-1,cur+1);draw1()};
+function reset1(){removed=null;steps=[];cur=-1;draw1()}
+$('reset1').onclick=reset1;
+$('mWeb').onclick=()=>{mode='web';$('mWeb').className='btn';$('mChain').className='btn ghost';reset1()};
+$('mChain').onclick=()=>{mode='chain';$('mChain').className='btn';$('mWeb').className='btn ghost';reset1()};
+document.addEventListener('keydown',e=>{ if(!$('t1').classList.contains('on'))return;
+  if(e.key==='ArrowRight'&&!$('next1').disabled)$('next1').click(); if(e.key==='ArrowLeft'&&!$('prev1').disabled)$('prev1').click();});
+reset1();
+
+/* =================== TAB 2 : 벼-메뚜기-참새 =================== */
+const LV=[['c2','2차 소비자','참새','🐦','#c9d8f0'],['c1','1차 소비자','메뚜기','🦗','#ffe9a8'],['p','생산자','벼','🌾','#bfe0a5']];
+const S2=[
+  {v:{p:24,c1:10,c2:3},hl:'',t:'평형이 유지된 상태예요. <b>벼 → 메뚜기 → 참새</b>로 갈수록 개체수가 줄어드는 피라미드 모양이에요. 각 생물이 몇 마리(포기)인지 세어 보자.'},
+  {v:{p:24,c1:16,c2:3},hl:'c1',t:'① 어떤 요인으로 <b>메뚜기(1차 소비자)</b>가 일시적으로 늘어났어요. 평형이 깨졌어요.'},
+  {v:{p:18,c1:16,c2:6},hl:'p c2',t:'② 메뚜기에게 많이 먹힌 <b>벼(생산자)는 줄고</b>, 먹이가 많아진 <b>참새(2차 소비자)는 늘어요</b>.'},
+  {v:{p:18,c1:8,c2:6},hl:'c1',t:'③ 먹이(벼)는 줄고 천적(참새)은 늘어 <b>메뚜기가 줄어요</b>.'},
+  {v:{p:24,c1:10,c2:3},hl:'p c2',t:'④ 메뚜기가 줄자 <b>벼는 다시 늘고</b>, 먹이가 줄어든 <b>참새는 다시 줄어요</b>. → <b>생태계평형 회복</b>'}];
+let s2=0, view='org', showCnt=false;
+function draw2(){
+  const st=S2[s2], prev=s2>0?S2[s2-1].v:st.v, W=[150,260,420];
+  $('pyrWrap').innerHTML=LV.map(([k,lab,org,ico,col],i)=>{
+    const n=st.v[k], base=S2[0].v[k], w=Math.round(W[i]*Math.sqrt(n/base)*1.25);
+    const d=n>prev[k]?'<span class="trend" style="color:#ff8a7a">▲ 증가</span>':n<prev[k]?'<span class="trend" style="color:#9cc3ff">▼ 감소</span>':'';
+    const inner= view==='org' ? [...Array(n)].map(()=>`<span class="ico">${ico}</span>`).join('') : `<span class="lab">${lab}</span>`;
+    const width= view==='org' ? Math.min(580, Math.max(110, n*34+20)) : Math.min(580,w);
+    return `<div class="lvl"><div class="name">${view==='org'?org:lab}<br><span style="font-size:14px;opacity:.8">${view==='org'?lab:org}</span></div>
+      <div class="bar ${st.hl.includes(k)?'hl':''}" style="width:${width}px;background:${col}">${inner}</div>
+      <div class="cnt">${showCnt?n+(k==='p'?'포기':'마리'):''} ${d}</div></div>`;
+  }).join('');
+  $('stepText').innerHTML=st.t;
+  $('stepNum2').textContent=s2===0?'평형':s2+'단계';
+  [...$('steps').children].forEach((c,i)=>c.classList.toggle('on',i===s2-1));
+  $('prev2').disabled=s2===0; $('next2').disabled=s2===4;
+}
+$('prev2').onclick=()=>{s2=Math.max(0,s2-1);draw2()};
+$('next2').onclick=()=>{s2=Math.min(4,s2+1);draw2()};
+$('reset2').onclick=()=>{s2=0;draw2()};
+$('vOrg').onclick=()=>{view='org';$('vOrg').className='btn';$('vPyr').className='btn ghost';draw2()};
+$('vPyr').onclick=()=>{view='pyr';$('vPyr').className='btn';$('vOrg').className='btn ghost';draw2()};
+$('vCnt').onclick=()=>{showCnt=!showCnt;$('vCnt').textContent=showCnt?'개체수 숫자 숨기기':'개체수 숫자 보기';draw2()};
+document.addEventListener('keydown',e=>{ if(!$('t2').classList.contains('on'))return;
+  if(e.key==='ArrowRight')$('next2').click(); if(e.key==='ArrowLeft')$('prev2').click();});
+draw2();
+const ORDER=['메뚜기 일시적 증가','벼 감소, 참새 증가','메뚜기 감소','벼 증가, 참새 감소 → 평형 회복'];
+let picked=null;
+function mkCard(t){const c=document.createElement('div');c.className='card';c.textContent=t;
+  c.onclick=()=>{document.querySelectorAll('.card').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');picked=c};return c}
+function setupQuiz(){ $('cards').innerHTML='';$('slots').innerHTML='';$('quizMsg').textContent='';
+  [...ORDER].sort(()=>Math.random()-.5).forEach(t=>$('cards').appendChild(mkCard(t)));
+  for(let i=0;i<4;i++){const s=document.createElement('div');s.className='slot';s.textContent=(i+1)+'단계';
+    s.onclick=()=>{ if(s.dataset.v){$('cards').appendChild(mkCard(s.dataset.v));delete s.dataset.v;s.textContent=(i+1)+'단계';s.className='slot'}
+      if(picked){s.textContent=picked.textContent;s.dataset.v=picked.textContent;picked.remove();picked=null;s.className='slot'} };
+    $('slots').appendChild(s)} }
+$('check').onclick=()=>{let ok=0;[...$('slots').children].forEach((s,i)=>{const r=s.dataset.v===ORDER[i];s.className='slot '+(s.dataset.v?(r?'ok':'no'):'');if(r)ok++});
+  $('quizMsg').innerHTML= ok===4?'<b style="color:#3e8e4f">모두 정답! 먹이 관계에 의해 평형이 회복돼요.</b>':`${ok}개 정답. 빨간 칸을 눌러 카드를 되돌린 뒤 다시 해 보자.`};
+setupQuiz();
+
+/* =================== TAB 3 : 카이바브 (단순 모형) =================== */
+const cv=$('chart'), cx=cv.getContext('2d');
+const HUNT=[0,.08,.16,.3], HN=['없음','약함','보통','강함'];
+function sim3(level){
+  const g=.18,K=30000,r=.02,k=.08,a=g*(1-3800/K)/400;
+  let W=400,D=3800,P=1; const out=[];
+  for(let y=1905;y<=1932;y++){
+    out.push({y,W,D,P});
+    const Dn=Math.max(200,D+g*D*(1-D/(K*P))-a*W*D);
+    const Pn=Math.min(1,Math.max(.05,P+r*(1-P)-k*P*Math.max(0,(D-3800)/3800)));
+    const Wn=Math.max(0,W+.05*W*(D/3800-1)-HUNT[level]*W);
+    W=Wn;D=Dn;P=Pn;
+  }
+  return out;
+}
+let data3=sim3(3), year3=1905, timer=null;
+function drawChart(){
+  const w=cv.width,h=cv.height,L=70,R=84,T=24,B=48, upto=year3;
+  cx.clearRect(0,0,w,h); cx.font='18px Jua, sans-serif';
+  const maxD=16000,maxW=500,X=y=>L+(y-1905)/(1932-1905)*(w-L-R);
+  cx.strokeStyle='#e5d6a8';cx.lineWidth=1;cx.fillStyle='#6b7a62';cx.textAlign='center';
+  for(let y=1905;y<=1930;y+=5){cx.beginPath();cx.moveTo(X(y),T);cx.lineTo(X(y),h-B);cx.stroke();cx.fillText(y,X(y),h-B+26)}
+  cx.textAlign='right';for(let i=0;i<=4;i++){const yy=h-B-(h-B-T)*i/4;cx.fillText((maxD*i/4/1000)+'천',L-8,yy+6)}
+  cx.save();cx.translate(18,h/2);cx.rotate(-Math.PI/2);cx.textAlign='center';cx.fillStyle='#e0782f';cx.fillText('사슴(마리)',0,0);cx.restore();
+  cx.textAlign='left';cx.fillStyle='#2f6fb5';for(let i=0;i<=4;i++){const yy=h-B-(h-B-T)*i/4;cx.fillText(125*i,w-R+8,yy+6)}
+  cx.save();cx.translate(w-4,h/2);cx.rotate(Math.PI/2);cx.textAlign='center';cx.fillText('늑대(마리)',0,0);cx.restore();
+  // 현재 연도 표시선
+  cx.strokeStyle='rgba(245,146,47,.6)';cx.lineWidth=2;cx.setLineDash([6,5]);cx.beginPath();cx.moveTo(X(upto),T);cx.lineTo(X(upto),h-B);cx.stroke();cx.setLineDash([]);
+  const Yd=v=>h-B-(h-B-T)*v/maxD,Yw=v=>h-B-(h-B-T)*v/maxW,Yp=v=>h-B-(h-B-T)*v;
+  const pts=data3.filter(d=>d.y<=upto);
+  const line=(f,col)=>{cx.strokeStyle=col;cx.lineWidth=4;cx.beginPath();pts.forEach((d,i)=>{const x=X(d.y),y=f(d);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke();
+    const d=pts[pts.length-1];cx.fillStyle=col;cx.beginPath();cx.arc(X(d.y),f(d),6,0,7);cx.fill()};
+  line(d=>Yp(d.P),'#3e8e4f'); line(d=>Yw(d.W),'#2f6fb5'); line(d=>Yd(d.D),'#e0782f');
+  const d=pts[pts.length-1];
+  cx.fillStyle='rgba(107,122,98,.85)';cx.font='14px Gowun Dodum, sans-serif';cx.textAlign='right';cx.fillText('단순 모형 계산값 (실제 측정값 아님)',w-R,T+18);
+  $('year').innerHTML=`${year3}년 <span style="font-family:Gowun Dodum,sans-serif;font-size:17px;color:#2f3a2a">늑대 <b style="color:#2f6fb5">${Math.round(d.W)}</b> · 사슴 <b style="color:#e0782f">${Math.round(d.D)}</b> · 식물 <b style="color:#3e8e4f">${Math.round(d.P*100)}%</b></span>`; $('yr').value=year3;
+}
+function stop(){clearInterval(timer);timer=null;$('play').textContent=year3>=1932?'↺ 다시 재생':'▶ 계속'}
+function play(){ if(timer){stop();return}
+  if(year3>=1932) year3=1905;
+  $('play').textContent='⏸ 일시정지';
+  timer=setInterval(()=>{year3++;drawChart();if(year3>=1932)stop()},450);
+}
+$('play').onclick=play;
+$('back3').onclick=()=>{if(timer)stop();year3=Math.max(1905,year3-1);drawChart();$('play').textContent='▶ 계속'};
+$('fwd3').onclick=()=>{if(timer)stop();year3=Math.min(1932,year3+1);drawChart();$('play').textContent=year3>=1932?'↺ 다시 재생':'▶ 계속'};
+$('reset3').onclick=()=>{if(timer)stop();year3=1905;drawChart();$('play').textContent='▶ 재생'};
+$('yr').oninput=()=>{if(timer)stop();year3=+$('yr').value;drawChart();$('play').textContent=year3>=1932?'↺ 다시 재생':'▶ 계속'};
+$('hunt').oninput=()=>{$('hv').textContent=HN[$('hunt').value];data3=sim3(+$('hunt').value);drawChart()};
+document.addEventListener('keydown',e=>{ if(!$('t3').classList.contains('on'))return;
+  if(e.key===' '){e.preventDefault();play()} if(e.key==='ArrowRight')$('fwd3').click(); if(e.key==='ArrowLeft')$('back3').click();});
+drawChart();
+</script>
+</body>
+</html>
