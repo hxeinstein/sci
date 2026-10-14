@@ -23,7 +23,7 @@ header h1{margin:0;font-size:clamp(20px,2.4vw,30px);color:var(--label)}
 header .sub{font-size:14px;color:var(--muted)}
 nav{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
 .tab{border:none;background:#efe3bf;color:var(--label);padding:9px 18px;border-radius:999px;font-size:clamp(15px,1.7vw,20px);cursor:pointer}
-.tab[aria-selected="true"]{background:var(--orange);color:#fff}
+.tab.on{background:var(--orange);color:#fff}
 main{flex:1;padding:0 14px 14px;display:flex}
 .board{flex:1;background:var(--board);border:10px solid #e6d3a6;border-radius:18px;padding:16px 18px;color:var(--chalk);display:none;gap:16px;min-height:0}
 .board.on{display:grid}
@@ -98,7 +98,7 @@ footer{font-size:12px;color:var(--muted);padding:0 18px 8px}
     <div class="sub">통합과학2 · Ⅱ. 환경과 에너지 · 1. 생태계와 환경 · 02. 생태계평형</div>
   </div>
   <nav role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-t="t1">① 먹이그물 실험</button>
+    <button class="tab on" role="tab" aria-selected="true" data-t="t1">① 먹이그물 실험</button>
     <button class="tab" role="tab" aria-selected="false" data-t="t2">② 평형의 회복</button>
     <button class="tab" role="tab" aria-selected="false" data-t="t3">③ 카이바브 고원</button>
   </nav>
@@ -165,11 +165,11 @@ footer{font-size:12px;color:var(--muted);padding:0 18px 8px}
     <div class="legend" style="margin-top:6px">
       <span><i style="background:#2f6fb5"></i>늑대</span>
       <span><i style="background:#e0782f"></i>사슴</span>
-      <span><i style="background:#3e8e4f"></i>식물군집의 양(상대값)</span>
+      <span><i style="background:#3e8e4f"></i>식물군집의 양(초록 영역, 상대값)</span>
     </div>
   </div>
   <div class="panel">
-    <div>1905년 카이바브 고원에는 늑대 약 400마리, 사슴 약 3800마리가 살았어요. 사슴을 보호하려고 사슴의 포식자인 늑대 사냥을 허용했어요.</div>
+    <div>1905년 카이바브 고원에는 늑대 약 400마리, 사슴 약 3800마리가 살았어요. 사슴을 보호하려고 사슴의 포식자인 늑대 사냥을 허용했어요.<br><span style="font-size:15px;color:var(--muted)">늑대와 사슴을 같은 눈금(마리)으로 그렸어요. 생산자(식물) &gt; 1차 소비자(사슴) &gt; 2차 소비자(늑대) 순서를 확인해 보자.</span></div>
     <label><b>늑대 사냥 강도</b> <span id="hv">강함</span>
       <input type="range" id="hunt" min="0" max="3" step="1" value="3"></label>
     <div class="row">
@@ -192,7 +192,7 @@ footer{font-size:12px;color:var(--muted);padding:0 18px 8px}
 <script>
 const $=id=>document.getElementById(id);
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('.tab').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-selected',String(x===b))});
   document.querySelectorAll('.board').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t));
   if(b.dataset.t==='t3') drawChart();
 });
@@ -369,25 +369,31 @@ function sim3(level){
 }
 let data3=sim3(3), year3=1905, timer=null;
 function drawChart(){
-  const w=cv.width,h=cv.height,L=70,R=84,T=24,B=48, upto=year3;
+  const w=cv.width,h=cv.height,L=78,R=24,T=24,B=48, upto=year3;
   cx.clearRect(0,0,w,h); cx.font='18px Jua, sans-serif';
-  const maxD=16000,maxW=500,X=y=>L+(y-1905)/(1932-1905)*(w-L-R);
+  const maxD=16000,X=y=>L+(y-1905)/(1932-1905)*(w-L-R), Y=v=>h-B-(h-B-T)*v/maxD;
+  const pts=data3.filter(d=>d.y<=upto);
+  // 식물군집(생산자): 그래프 바탕 전체를 채우는 초록 영역 (100% = 가장 위)
+  cx.fillStyle='rgba(62,142,79,.20)';cx.beginPath();cx.moveTo(X(pts[0].y),h-B);
+  pts.forEach(d=>cx.lineTo(X(d.y),h-B-(h-B-T)*d.P));cx.lineTo(X(pts[pts.length-1].y),h-B);cx.closePath();cx.fill();
+  cx.strokeStyle='#3e8e4f';cx.lineWidth=3;cx.beginPath();pts.forEach((d,i)=>{const x=X(d.y),y=h-B-(h-B-T)*d.P;i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke();
+  // 눈금
   cx.strokeStyle='#e5d6a8';cx.lineWidth=1;cx.fillStyle='#6b7a62';cx.textAlign='center';
   for(let y=1905;y<=1930;y+=5){cx.beginPath();cx.moveTo(X(y),T);cx.lineTo(X(y),h-B);cx.stroke();cx.fillText(y,X(y),h-B+26)}
-  cx.textAlign='right';for(let i=0;i<=4;i++){const yy=h-B-(h-B-T)*i/4;cx.fillText((maxD*i/4/1000)+'천',L-8,yy+6)}
-  cx.save();cx.translate(18,h/2);cx.rotate(-Math.PI/2);cx.textAlign='center';cx.fillStyle='#e0782f';cx.fillText('사슴(마리)',0,0);cx.restore();
-  cx.textAlign='left';cx.fillStyle='#2f6fb5';for(let i=0;i<=4;i++){const yy=h-B-(h-B-T)*i/4;cx.fillText(125*i,w-R+8,yy+6)}
-  cx.save();cx.translate(w-4,h/2);cx.rotate(Math.PI/2);cx.textAlign='center';cx.fillText('늑대(마리)',0,0);cx.restore();
+  cx.textAlign='right';for(let i=0;i<=4;i++){const yy=Y(maxD*i/4);cx.beginPath();cx.moveTo(L,yy);cx.lineTo(w-R,yy);cx.stroke();cx.fillText((maxD*i/4).toLocaleString(),L-8,yy+6)}
+  cx.save();cx.translate(16,h/2);cx.rotate(-Math.PI/2);cx.textAlign='center';cx.fillStyle='#2f3a2a';cx.fillText('개체수(마리)',0,0);cx.restore();
   // 현재 연도 표시선
   cx.strokeStyle='rgba(245,146,47,.6)';cx.lineWidth=2;cx.setLineDash([6,5]);cx.beginPath();cx.moveTo(X(upto),T);cx.lineTo(X(upto),h-B);cx.stroke();cx.setLineDash([]);
-  const Yd=v=>h-B-(h-B-T)*v/maxD,Yw=v=>h-B-(h-B-T)*v/maxW,Yp=v=>h-B-(h-B-T)*v;
-  const pts=data3.filter(d=>d.y<=upto);
-  const line=(f,col)=>{cx.strokeStyle=col;cx.lineWidth=4;cx.beginPath();pts.forEach((d,i)=>{const x=X(d.y),y=f(d);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke();
-    const d=pts[pts.length-1];cx.fillStyle=col;cx.beginPath();cx.arc(X(d.y),f(d),6,0,7);cx.fill()};
-  line(d=>Yp(d.P),'#3e8e4f'); line(d=>Yw(d.W),'#2f6fb5'); line(d=>Yd(d.D),'#e0782f');
+  const line=(f,col,lab)=>{cx.strokeStyle=col;cx.lineWidth=4;cx.beginPath();pts.forEach((d,i)=>{const x=X(d.y),y=f(d);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke();
+    const d=pts[pts.length-1];cx.fillStyle=col;cx.beginPath();cx.arc(X(d.y),f(d),6,0,7);cx.fill();
+    cx.font='bold 17px Gowun Dodum, sans-serif';cx.textAlign=X(d.y)>w-150?'right':'left';const dx=X(d.y)>w-150?-10:10;
+    cx.lineWidth=4;cx.strokeStyle='#fffaf0';cx.strokeText(lab(d),X(d.y)+dx,f(d)-10);cx.fillText(lab(d),X(d.y)+dx,f(d)-10)};
+  line(d=>Y(d.W),'#2f6fb5',d=>'늑대 '+Math.round(d.W));
+  line(d=>Y(d.D),'#e0782f',d=>'사슴 '+Math.round(d.D).toLocaleString());
+  cx.fillStyle='rgba(107,122,98,.85)';cx.font='14px Gowun Dodum, sans-serif';cx.textAlign='right';cx.fillText('단순 모형 계산값 (실제 측정값 아님)',w-R-6,T+18);
+  cx.textAlign='left';cx.fillStyle='#3e8e4f';cx.fillText('초록 영역 = 식물군집의 양 (처음 100%)',L+8,T+18);
   const d=pts[pts.length-1];
-  cx.fillStyle='rgba(107,122,98,.85)';cx.font='14px Gowun Dodum, sans-serif';cx.textAlign='right';cx.fillText('단순 모형 계산값 (실제 측정값 아님)',w-R,T+18);
-  $('year').innerHTML=`${year3}년 <span style="font-family:Gowun Dodum,sans-serif;font-size:17px;color:#2f3a2a">늑대 <b style="color:#2f6fb5">${Math.round(d.W)}</b> · 사슴 <b style="color:#e0782f">${Math.round(d.D)}</b> · 식물 <b style="color:#3e8e4f">${Math.round(d.P*100)}%</b></span>`; $('yr').value=year3;
+  $('year').innerHTML=`${year3}년 <span style="font-family:Gowun Dodum,sans-serif;font-size:17px;color:#2f3a2a">식물 <b style="color:#3e8e4f">${Math.round(d.P*100)}%</b> · 사슴 <b style="color:#e0782f">${Math.round(d.D).toLocaleString()}</b> · 늑대 <b style="color:#2f6fb5">${Math.round(d.W)}</b></span>`; $('yr').value=year3;
 }
 function stop(){clearInterval(timer);timer=null;$('play').textContent=year3>=1932?'↺ 다시 재생':'▶ 계속'}
 function play(){ if(timer){stop();return}
