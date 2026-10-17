@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>지구 온난화의 메커니즘과 영향</title>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#F5F9FA;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script>
+const VW=800,VH=600;
+const cv=document.getElementById('cv');cv.width=VW*2;cv.height=VH*2;
+const c=cv.getContext('2d');
+const F="'Do Hyeon',sans-serif";
+const INK='#24324A',TEAL='#1F7A7A',IR='#E0533D';
+const GND=410,AT=120,AB=250,CYCLE=21;
+let P=0,T=0,paused=false,last=performance.now(),spawn=0,emit=0;
+let mols=[],ph=[],pend=[];
+cv.addEventListener('click',()=>{paused=!paused;});
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
+function prog(){return clamp((P-1)/13,0,1);}
+function later(t,fn){pend.push({t,fn});}
+function addMol(fromX,fromY){mols.push({x:fromX,y:fromY,ty:AT+12+Math.random()*(AB-AT-24),tx:40+Math.random()*720,p:Math.random()*6});}
+function reset(){mols=[];ph=[];pend=[];for(let i=0;i<6;i++){addMol(0,0);const m=mols[i];m.x=m.tx;m.y=m.ty;}}
+reset();
+function spawnIR(x,y,dir){const a=(dir<0?-Math.PI/2:Math.PI/2)+(Math.random()-0.5)*0.6;ph.push({x,y,vx:Math.cos(a)*190,vy:Math.sin(a)*190,ay:AT+15+Math.random()*(AB-AT-30),done:false});}
+function update(dt){
+  P+=dt;if(P>CYCLE){P=0;reset();}
+  const pr=prog(),target=6+Math.round(34*pr);
+  spawn+=dt;if(mols.length<target&&spawn>0.25){spawn=0;Math.random()<0.6?addMol(150,300):addMol(232,388);}
+  for(const m of mols){m.x+=(m.tx-m.x)*Math.min(1,dt*0.6);m.y+=(m.ty-m.y)*Math.min(1,dt*0.6);}
+  emit+=dt;if(emit>0.28){emit=0;spawnIR(300+Math.random()*320,GND-2,-1);}
+  const pAbs=0.25+0.65*pr;
+  for(const p of ph){p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.vy>0&&p.y>=GND){p.dead=true;}
+    else if(p.y<40)p.dead=true;
+    else if(!p.done&&p.vy<0&&p.y<=p.ay){p.done=true;if(Math.random()<pAbs){p.dead=true;const x=p.x,y=p.y;later(0.3,()=>{spawnIR(x,y,Math.random()<0.5?-1:1);ph[ph.length-1].done=true;});}}}
+  ph=ph.filter(p=>!p.dead);
+  for(const q of pend)q.t-=dt;const due=pend.filter(q=>q.t<=0);pend=pend.filter(q=>q.t>0);due.forEach(q=>q.fn());
+}
+function rr(x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r);}
+function co2(x,y){c.fillStyle='#5a6475';c.beginPath();c.arc(x,y,5.5,0,7);c.fill();c.fillStyle='#e05a4a';c.beginPath();c.arc(x-9,y,4.5,0,7);c.arc(x+9,y,4.5,0,7);c.fill();}
+function wave(p){const sp=Math.hypot(p.vx,p.vy),ux=p.vx/sp,uy=p.vy/sp;c.strokeStyle=IR;c.lineWidth=3;c.lineCap='round';c.beginPath();
+  for(let s=0;s<=28;s+=2){const o=Math.sin(s/12*Math.PI*2+T*10)*3.2;const x=p.x-ux*s-uy*o,y=p.y-uy*s+ux*o;s?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();}
+function draw(){
+  c.setTransform(2,0,0,2,0,0);c.textBaseline='middle';
+  const pr=prog();
+  const sk=c.createLinearGradient(0,60,0,GND);sk.addColorStop(0,'#DCEAF6');sk.addColorStop(1,`rgb(${Math.round(244+8*pr)},${Math.round(249-14*pr)},${Math.round(252-30*pr)})`);
+  c.fillStyle=sk;c.fillRect(0,60,VW,GND-60);
+  c.fillStyle='#F5F9FA';c.fillRect(0,0,VW,60);
+  c.fillStyle=INK;c.font="32px "+F;c.textAlign='center';c.fillText('지구 온난화',VW/2,30);
+  // atmosphere band
+  c.fillStyle=`rgba(120,175,225,${0.12+0.2*pr})`;c.fillRect(0,AT,VW,AB-AT);
+  c.fillStyle='#2F6EA5';c.font="18px "+F;c.textAlign='left';c.fillText('대기 중 온실 기체',14,AT-12);
+  // ground
+  c.fillStyle='#7DB46C';c.fillRect(0,GND,640,8);c.fillStyle='#A9845C';c.fillRect(0,GND+8,640,30);
+  // factory
+  c.fillStyle='#7d8796';c.fillRect(95,345,110,GND-345);c.fillRect(135,290,22,60);c.fillRect(170,305,18,45);
+  c.fillStyle='#c9d1db';for(let i=0;i<3;i++)c.fillRect(105+i*34,365,22,18);
+  for(let i=0;i<4;i++){const t=(T*0.5+i/4)%1;c.fillStyle=`rgba(150,150,150,${0.5*(1-t)})`;c.beginPath();c.arc(146+t*14,285-t*60,8+t*12,0,7);c.fill();}
+  // car
+  c.fillStyle='#3E6E9E';rr(222,384,62,18,6);c.fill();rr(236,372,34,16,6);c.fill();c.fillStyle='#222';c.beginPath();c.arc(236,402,7,0,7);c.arc(272,402,7,0,7);c.fill();
+  c.fillStyle=INK;c.font="17px "+F;c.textAlign='center';c.fillText('인간의 활동',185,GND+22+4);
+  // mountain + glacier
+  c.fillStyle='#8f8a80';c.beginPath();c.moveTo(430,GND);c.lineTo(530,250);c.lineTo(630,GND);c.closePath();c.fill();
+  const gl=lerp(1,0.35,pr);const gh=110*gl;
+  c.fillStyle='#fff';c.beginPath();c.moveTo(530,250);c.lineTo(530-gh*0.62,250+gh);
+  for(let i=0;i<=6;i++){const x=530-gh*0.62+i*(gh*1.24/6);c.lineTo(x,250+gh-(i%2?10*gl:0));}c.lineTo(530,250);c.closePath();c.fill();
+  c.fillStyle=INK;c.font="17px "+F;c.fillText('빙하 감소',530,GND+22+4);
+  // sea (right) with rising level
+  const sea=lerp(GND+16,GND-22,pr);
+  c.fillStyle='#A9845C';c.beginPath();c.moveTo(640,GND+38);c.lineTo(640,GND);c.lineTo(800,GND+30);c.lineTo(800,GND+38);c.closePath();c.fill();
+  c.fillStyle='rgba(61,124,201,0.85)';c.fillRect(640,sea,160,GND+38-sea);
+  c.strokeStyle='#fff';c.lineWidth=2;c.beginPath();for(let x=640;x<=800;x+=4)c.lineTo(x,sea+Math.sin(x/9+T*3)*2);c.stroke();
+  c.fillStyle='#fff';c.font="17px "+F;c.fillText('해수면 상승',720,GND+22);
+  // molecules & photons
+  for(const m of mols)co2(m.x+Math.sin(T*0.8+m.p)*3,m.y+Math.cos(T*0.7+m.p)*2);
+  for(const p of ph)wave(p);
+  // thermometer
+  c.fillStyle='rgba(255,255,255,0.93)';rr(690,70,96,150,12);c.fill();c.strokeStyle='#c9d3de';c.lineWidth=1.5;c.stroke();
+  c.fillStyle=INK;c.font="16px "+F;c.textAlign='center';c.fillText('평균 기온',738,88);
+  rr(728,100,20,90,10);c.fillStyle='#eef2f6';c.fill();c.strokeStyle='#9aa8b8';c.stroke();
+  const th=lerp(28,80,pr);rr(732,186-th,12,th+4,6);c.fillStyle=IR;c.fill();c.beginPath();c.arc(738,198,13,0,7);c.fill();
+  c.fillStyle='#8a97a8';c.font="15px "+F;c.textAlign='right';c.fillText('(변화를 크게 그림)',786,32);
+  // chain
+  const items=[['인간의 활동'],['대기 중','온실 기체 증가'],['온실 효과','강화'],['지표와 대기가','흡수하는','에너지양 증가'],['지구의','기온 상승']];
+  const step=P<3?1:P<6?2:P<9?3:P<12?4:5;
+  const n=5,bw=140,gap=16,x0=(VW-(n*bw+(n-1)*gap))/2,y=462,h=78;
+  items.forEach((it,i)=>{const x=x0+i*(bw+gap),on=i<step;rr(x,y,bw,h,14);c.fillStyle=on?(i===n-1?IR:'#fff'):'#eef1f4';c.fill();
+    c.strokeStyle=on?IR:'#cfd8e2';c.lineWidth=2;c.stroke();c.fillStyle=on?(i===n-1?'#fff':INK):'#a7b2bf';c.font="18px "+F;c.textAlign='center';
+    it.forEach((t,j)=>c.fillText(t,x+bw/2,y+h/2+(j-(it.length-1)/2)*22));
+    if(i<n-1){c.fillStyle=i+1<step?IR:'#cfd8e2';const ax=x+bw+3;c.beginPath();c.moveTo(ax,y+h/2-8);c.lineTo(ax+gap-6,y+h/2);c.lineTo(ax,y+h/2+8);c.fill();}});
+  if(P>14){c.globalAlpha=clamp((P-14)/0.8,0,1);c.fillStyle='rgba(36,50,74,0.92)';rr(60,552,680,38,10);c.fill();
+    c.fillStyle='#fff';c.font="20px "+F;c.textAlign='center';c.fillText('→ 빙하 감소, 해수면 상승, 태풍 증가, 홍수와 가뭄 지역 변화, 사막화 등',VW/2,571);c.globalAlpha=1;}
+  if(P>CYCLE-0.6){c.fillStyle=`rgba(245,249,250,${(P-(CYCLE-0.6))/0.6})`;c.fillRect(0,0,VW,VH);}
+  if(paused){c.fillStyle='rgba(36,50,74,0.8)';rr(VW-188,8,180,32,10);c.fill();c.fillStyle='#fff';c.font="17px "+F;c.textAlign='center';c.fillText('일시정지 · 클릭하면 재생',VW-98,25);}
+}
+function loop(now){const dt=Math.min(0.05,Math.max(0,(now-last)/1000));last=now;if(!paused){T+=dt;update(dt);}draw();requestAnimationFrame(loop);}
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>requestAnimationFrame(loop));
+</script>
+</body>
+</html>
