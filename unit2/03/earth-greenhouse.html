@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>온실 효과 - 대기가 없을 때와 있을 때</title>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#F5F9FA;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script>
+const VW=800,VH=600;
+const cv=document.getElementById('cv');cv.width=VW*2;cv.height=VH*2;
+const c=cv.getContext('2d');
+const F="'Do Hyeon',sans-serif";
+const COL={bg:'#F5F9FA',ink:'#24324A',sun:'#F2A922',ir:'#E0533D',teal:'#1F7A7A',atm:'rgba(110,170,220,0.28)'};
+const GROUND=470, ATM_TOP=215, ATM_BOT=395;
+let mode=0, modeT=0, atmA=0, temp=0.3, paused=false, T=0, spawnT=0, last=performance.now();
+let ph=[], flashes=[], pend=[];
+function later(sec,fn){pend.push({t:sec,fn:fn});}
+const mols=[];
+for(let i=0;i<34;i++){mols.push({x:40+Math.random()*720,y:ATM_TOP+15+Math.random()*(ATM_BOT-ATM_TOP-30),k:i%3,p:Math.random()*6});}
+const tabs=[{x:250,y:58,w:140,h:36,label:'대기가 없을 때',m:0},{x:410,y:58,w:140,h:36,label:'대기가 있을 때',m:1}];
+
+cv.addEventListener('click',e=>{
+  const r=cv.getBoundingClientRect();
+  const s=Math.min(r.width/VW,r.height/VH);
+  const x=(e.clientX-r.left-(r.width-VW*s)/2)/s, y=(e.clientY-r.top-(r.height-VH*s)/2)/s;
+  for(const t of tabs){ if(x>t.x&&x<t.x+t.w&&y>t.y&&y<t.y+t.h){ mode=t.m; modeT=0; paused=false; return; } }
+  paused=!paused;
+});
+
+function spawnSun(){
+  const sx=95+Math.random()*20, sy=150+Math.random()*10;
+  const tx=230+Math.random()*520;
+  const dx=tx-sx, dy=GROUND-sy, L=Math.hypot(dx,dy), sp=250;
+  ph.push({t:'sun',x:sx,y:sy,vx:dx/L*sp,vy:dy/L*sp,abs:false});
+}
+function spawnIR(x,y,dir){
+  const ang=(dir<0?-Math.PI/2:Math.PI/2)+(Math.random()-0.5)*0.7;
+  const sp=200;
+  ph.push({t:'ir',x:x,y:y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,
+    absY: ATM_TOP+20+Math.random()*(ATM_BOT-ATM_TOP-40), done:false, delay:0});
+}
+function update(dt){
+  modeT+=dt; if(modeT>10){mode=1-mode;modeT=0;}
+  atmA+=((mode?1:0)-atmA)*Math.min(1,dt*2.5);
+  temp+=((mode?0.72:0.32)-temp)*Math.min(1,dt*0.8);
+  spawnT+=dt; if(spawnT>0.22){spawnT=0;spawnSun();}
+  for(const p of ph){
+    if(p.delay>0){p.delay-=dt;continue;}
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.t==='sun' && p.y>=GROUND){ p.dead=true; const q={x:p.x}; later(0.25+Math.random()*0.35,()=>spawnIR(q.x,GROUND-2,-1)); }
+    if(p.t==='ir'){
+      if(p.vy>0 && p.y>=GROUND){ p.dead=true; const qx=p.x; later(0.2+Math.random()*0.3,()=>spawnIR(qx,GROUND-2,-1)); }
+      else if(p.y<-30||p.x<-30||p.x>VW+30) p.dead=true;
+      else if(!p.done && mode===1 && atmA>0.6 && p.vy<0 && p.y<=p.absY){
+        p.done=true;
+        if(Math.random()<0.8){
+          p.dead=true; flashes.push({x:p.x,y:p.y,a:1});
+          const dir=Math.random()<0.5?-1:1, x=p.x, y=p.y;
+          later(0.35,()=>{ spawnIR(x,y,dir); ph[ph.length-1].done=true; });
+        }
+      }
+    }
+  }
+  ph=ph.filter(p=>!p.dead);
+  for(const q of pend) q.t-=dt;
+  const due=pend.filter(q=>q.t<=0); pend=pend.filter(q=>q.t>0); for(const q of due) q.fn();
+  for(const f of flashes) f.a-=dt*1.6;
+  flashes=flashes.filter(f=>f.a>0);
+}
+function wave(p,len,wl,amp,col,w){
+  const sp=Math.hypot(p.vx,p.vy), ux=p.vx/sp, uy=p.vy/sp, nx=-uy, ny=ux;
+  c.strokeStyle=col;c.lineWidth=w;c.lineCap='round';c.beginPath();
+  for(let s=0;s<=len;s+=2){
+    const off=Math.sin((s/wl)*Math.PI*2+T*10)*amp;
+    const x=p.x-ux*s+nx*off, y=p.y-uy*s+ny*off;
+    s===0?c.moveTo(x,y):c.lineTo(x,y);
+  }
+  c.stroke();
+  c.fillStyle=col;c.beginPath();c.arc(p.x,p.y,w*1.1,0,7);c.fill();
+}
+function rr(x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r);}
+function drawMol(m){
+  const x=m.x+Math.sin(T*0.8+m.p)*4, y=m.y+Math.cos(T*0.7+m.p)*3;
+  c.globalAlpha=atmA;
+  if(m.k===0){ // CO2
+    c.fillStyle='#5a6475';c.beginPath();c.arc(x,y,5.5,0,7);c.fill();
+    c.fillStyle='#e05a4a';c.beginPath();c.arc(x-9,y,4.5,0,7);c.arc(x+9,y,4.5,0,7);c.fill();
+  } else if(m.k===1){ // H2O
+    c.fillStyle='#e05a4a';c.beginPath();c.arc(x,y,5.5,0,7);c.fill();
+    c.fillStyle='#e8eef5';c.strokeStyle='#8aa';c.lineWidth=1;
+    c.beginPath();c.arc(x-7,y+5,3.6,0,7);c.fill();c.stroke();c.beginPath();c.arc(x+7,y+5,3.6,0,7);c.fill();c.stroke();
+  } else { // CH4
+    c.fillStyle='#5a6475';c.beginPath();c.arc(x,y,5.5,0,7);c.fill();
+    c.fillStyle='#e8eef5';c.strokeStyle='#8aa';c.lineWidth=1;
+    for(const [a,b] of [[-7,-5],[7,-5],[-7,5],[7,5]]){c.beginPath();c.arc(x+a,y+b,3,0,7);c.fill();c.stroke();}
+  }
+  c.globalAlpha=1;
+}
+function draw(){
+  c.setTransform(2,0,0,2,0,0);
+  // sky
+  const g=c.createLinearGradient(0,0,0,GROUND);g.addColorStop(0,'#E6EEF6');g.addColorStop(1,'#F7FBFD');
+  c.fillStyle=g;c.fillRect(0,0,VW,VH);
+  // title
+  c.fillStyle=COL.ink;c.font="34px "+F;c.textAlign='center';c.textBaseline='middle';
+  c.fillText('온실 효과',VW/2,28);
+  // tabs
+  for(const t of tabs){
+    const on=(mode===t.m);
+    rr(t.x,t.y,t.w,t.h,18);c.fillStyle=on?COL.teal:'#fff';c.fill();
+    c.strokeStyle=COL.teal;c.lineWidth=2;c.stroke();
+    c.fillStyle=on?'#fff':COL.teal;c.font="20px "+F;c.fillText(t.label,t.x+t.w/2,t.y+t.h/2+1);
+  }
+  c.fillStyle='#7c8aa0';c.font="19px "+F;c.textAlign='right';c.fillText('↑ 우주 공간',VW-18,128);
+  // atmosphere band
+  if(atmA>0.01){
+    c.globalAlpha=atmA;
+    const ag=c.createLinearGradient(0,ATM_TOP,0,ATM_BOT);
+    ag.addColorStop(0,'rgba(120,175,225,0.10)');ag.addColorStop(0.5,'rgba(120,175,225,0.32)');ag.addColorStop(1,'rgba(120,175,225,0.10)');
+    c.fillStyle=ag;c.fillRect(0,ATM_TOP,VW,ATM_BOT-ATM_TOP);
+    c.fillStyle='#2F6EA5';c.font="19px "+F;c.textAlign='left';
+    c.fillText('대기 (온실 기체)',18,ATM_TOP+18);
+    c.globalAlpha=1;
+    for(const m of mols) drawMol(m);
+  }
+  // sun
+  const sg=c.createRadialGradient(80,135,10,80,135,62);sg.addColorStop(0,'#FFE27A');sg.addColorStop(1,'rgba(255,200,60,0)');
+  c.fillStyle=sg;c.beginPath();c.arc(80,135,62,0,7);c.fill();
+  c.fillStyle='#FFC83A';c.beginPath();c.arc(80,135,32,0,7);c.fill();
+  c.fillStyle=COL.ink;c.font="18px "+F;c.textAlign='center';c.fillText('태양',80,135);
+  // ground
+  const gg=c.createLinearGradient(0,GROUND,0,VH);gg.addColorStop(0,'#7DB46C');gg.addColorStop(0.18,'#6A9E5B');gg.addColorStop(0.2,'#A9845C');gg.addColorStop(1,'#8C6A47');
+  c.fillStyle=gg;c.fillRect(0,GROUND,VW,VH-GROUND);
+  c.fillStyle='#fff';c.font="20px "+F;c.textAlign='left';c.fillText('지표',18,GROUND+42);
+  // photons
+  for(const p of ph){ if(p.delay>0)continue;
+    if(p.t==='sun') wave(p,22,7,2.2,COL.sun,3); else wave(p,30,13,3.5,COL.ir,3); }
+  for(const f of flashes){c.fillStyle=`rgba(224,83,61,${f.a*0.45})`;c.beginPath();c.arc(f.x,f.y,8+12*(1-f.a),0,7);c.fill();}
+  // thermometer
+  c.fillStyle='rgba(255,255,255,0.92)';rr(660,300,124,160,14);c.fill();c.strokeStyle='#c9d3de';c.lineWidth=1.5;c.stroke();
+  c.fillStyle=COL.ink;c.font="17px "+F;c.textAlign='center';c.fillText('지표 온도',722,318);
+  rr(712,332,20,96,10);c.fillStyle='#eef2f6';c.fill();c.strokeStyle='#9aa8b8';c.stroke();
+  const hh=86*temp;rr(716,424-hh,12,hh+4,6);c.fillStyle='#E0533D';c.fill();
+  c.beginPath();c.arc(722,436,14,0,7);c.fillStyle='#E0533D';c.fill();c.strokeStyle='#9aa8b8';c.stroke();
+  c.fillStyle=COL.ink;c.font="15px "+F;c.textAlign='left';
+  c.fillText(mode?'높게':'낮음',742,370);c.fillText(mode?'유지':'',742,388);
+  // legend
+  c.fillStyle='rgba(255,255,255,0.92)';rr(560,150,224,62,12);c.fill();c.strokeStyle='#c9d3de';c.stroke();
+  wave({x:620,y:168,vx:1,vy:0},34,7,2.2,COL.sun,3);
+  wave({x:620,y:194,vx:1,vy:0},34,13,3.5,COL.ir,3);
+  c.fillStyle=COL.ink;c.font="17px "+F;c.textAlign='left';
+  c.fillText('태양 복사 에너지',632,169);c.fillText('지구 복사 에너지',632,195);
+  // caption box
+  c.fillStyle='rgba(36,50,74,0.92)';rr(20,525,760,62,12);c.fill();
+  c.fillStyle='#fff';c.font="21px "+F;c.textAlign='center';
+  if(mode===0){
+    c.fillText('지표에서 방출하는 지구 복사 에너지가',VW/2,545);
+    c.fillText('그대로 우주 공간으로 빠져나감',VW/2,570);
+  }else{
+    c.fillText('온실 기체가 지구 복사 에너지 중 일부를 흡수했다가 지표로 다시 방출',VW/2,545);
+    c.fillStyle='#FFD27A';c.fillText('→ 지구의 평균 기온이 높게 유지됨',VW/2,570);
+  }
+  if(paused){c.fillStyle='rgba(36,50,74,0.8)';rr(VW-188,8,180,32,10);c.fill();c.fillStyle='#fff';c.font="17px "+F;c.textAlign='center';c.fillText('일시정지 · 클릭하면 재생',VW-98,25);}
+}
+function loop(now){
+  const dt=Math.min(0.05,Math.max(0,(now-last)/1000));last=now;
+  if(!paused){T+=dt;update(dt);}
+  draw();requestAnimationFrame(loop);
+}
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>requestAnimationFrame(loop));
+</script>
+</body>
+</html>

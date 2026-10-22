@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>엘니뇨 - 평상시와 엘니뇨 발생 시</title>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#F5F9FA;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script>
+const VW=800,VH=600;
+const cv=document.getElementById('cv');cv.width=VW*2;cv.height=VH*2;
+const c=cv.getContext('2d');
+const F="'Do Hyeon',sans-serif";
+const INK='#24324A',TEAL='#1F7A7A',WARM='#E8743B',COLD='#2F6EA5';
+const SS=300,BOT=452,XW=95,XE=705;
+let mode=0,modeT=0,k=0,T=0,paused=false,last=performance.now();
+const tabs=[{x:230,y:48,w:160,h:34,label:'평상시',m:0},{x:410,y:48,w:160,h:34,label:'엘니뇨 발생 시',m:1}];
+cv.addEventListener('click',e=>{
+  const r=cv.getBoundingClientRect(),s=Math.min(r.width/VW,r.height/VH);
+  const x=(e.clientX-r.left-(r.width-VW*s)/2)/s,y=(e.clientY-r.top-(r.height-VH*s)/2)/s;
+  for(const t of tabs){if(x>t.x&&x<t.x+t.w&&y>t.y&&y<t.y+t.h){mode=t.m;modeT=0;paused=false;return;}}
+  paused=!paused;
+});
+const lerp=(a,b,t)=>a+(b-a)*t;
+function depth(x){ // warm-layer thickness
+  const u=(x-XW)/(XE-XW), dW=lerp(128,82,k), dE=lerp(20,62,k);
+  return lerp(dW,dE,Math.pow(u,1.25));
+}
+const cur=[];for(let i=0;i<36;i++)cur.push({x:XW+Math.random()*(XE-XW),f:Math.random()});
+const wind=[];for(let i=0;i<9;i++)wind.push({x:XW+i*(XE-XW)/9});
+const upw=[];for(let i=0;i<14;i++)upw.push({s:i/14,lane:i%3});
+const rise=[];for(let i=0;i<8;i++)rise.push({s:i/8});
+const rain=[];for(let i=0;i<22;i++)rain.push({dx:-45+Math.random()*90,y:160+Math.random()*120,v:170+Math.random()*60});
+function rr(x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r);}
+function arrow(x1,y1,x2,y2,col,w,hs){const a=Math.atan2(y2-y1,x2-x1);c.strokeStyle=col;c.fillStyle=col;c.lineWidth=w;c.lineCap='round';
+  c.beginPath();c.moveTo(x1,y1);c.lineTo(x2-Math.cos(a)*hs*0.8,y2-Math.sin(a)*hs*0.8);c.stroke();
+  c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-Math.cos(a)*hs+Math.sin(a)*hs*0.7,y2-Math.sin(a)*hs-Math.cos(a)*hs*0.7);
+  c.lineTo(x2-Math.cos(a)*hs-Math.sin(a)*hs*0.7,y2-Math.sin(a)*hs+Math.cos(a)*hs*0.7);c.closePath();c.fill();}
+function cloud(x,y,a){c.globalAlpha=a;c.fillStyle='#fff';c.strokeStyle='#9fb2c6';c.lineWidth=2;c.beginPath();
+  c.arc(x-32,y+6,19,0,7);c.arc(x-8,y-10,26,0,7);c.arc(x+20,y-4,23,0,7);c.arc(x+40,y+8,16,0,7);c.fill();c.stroke();
+  c.fillRect(x-48,y+6,92,18);c.globalAlpha=1;}
+function sun(x,y,a){c.globalAlpha=a;c.save();c.translate(x,y);c.rotate(T*0.4);c.strokeStyle='#F2A922';c.lineWidth=3;
+  for(let i=0;i<8;i++){c.rotate(Math.PI/4);c.beginPath();c.moveTo(18,0);c.lineTo(26,0);c.stroke();}
+  c.restore();c.fillStyle='#FFC83A';c.beginPath();c.arc(x,y,14,0,7);c.fill();c.globalAlpha=1;}
+function update(dt){
+  modeT+=dt;if(modeT>10){mode=1-mode;modeT=0;}
+  k+=((mode?1:0)-k)*Math.min(1,dt*1.6);
+  const cs=lerp(70,22,k);
+  for(const p of cur){p.x-=cs*dt*(0.7+0.6*p.f);if(p.x<XW+8)p.x=XE-8;}
+  const ws=lerp(120,45,k);for(const w of wind){w.x-=ws*dt;if(w.x<XW-10)w.x+=XE-XW+20;}
+  const us=lerp(0.28,0.1,k);for(const u of upw)u.s=(u.s+us*dt)%1;
+  for(const r of rise)r.s=(r.s+0.35*dt)%1;
+  for(const r of rain){r.y+=r.v*dt;if(r.y>SS-4)r.y=165+Math.random()*20;}
+}
+function draw(){
+  c.setTransform(2,0,0,2,0,0);c.textBaseline='middle';
+  c.fillStyle='#F5F9FA';c.fillRect(0,0,VW,VH);
+  c.fillStyle=INK;c.font="32px "+F;c.textAlign='center';c.fillText('엘니뇨 (태평양 적도 부근 단면)',VW/2,24);
+  for(const t of tabs){const on=mode===t.m;rr(t.x,t.y,t.w,t.h,17);c.fillStyle=on?(t.m?WARM:TEAL):'#fff';c.fill();
+    c.strokeStyle=t.m?WARM:TEAL;c.lineWidth=2;c.stroke();c.fillStyle=on?'#fff':(t.m?WARM:TEAL);c.font="20px "+F;c.fillText(t.label,t.x+t.w/2,t.y+t.h/2+1);}
+  // sky
+  const sg=c.createLinearGradient(0,92,0,SS);sg.addColorStop(0,'#DCEAF6');sg.addColorStop(1,'#F4F9FC');c.fillStyle=sg;c.fillRect(40,92,720,SS-92);
+  // deep ocean
+  const og=c.createLinearGradient(0,SS,0,BOT);og.addColorStop(0,'#4F86BD');og.addColorStop(1,'#1E3F66');c.fillStyle=og;c.fillRect(XW,SS,XE-XW,BOT-SS);
+  // warm layer
+  c.beginPath();c.moveTo(XW,SS);for(let x=XW;x<=XE;x+=5)c.lineTo(x,SS);for(let x=XE;x>=XW;x-=5)c.lineTo(x,SS+depth(x));c.closePath();
+  const wg=c.createLinearGradient(0,SS,0,SS+130);wg.addColorStop(0,'#F28C45');wg.addColorStop(1,'#F6C27A');c.fillStyle=wg;c.fill();
+  c.strokeStyle='rgba(255,255,255,0.6)';c.lineWidth=1.5;c.setLineDash([5,5]);c.beginPath();for(let x=XW;x<=XE;x+=5)x===XW?c.moveTo(x,SS+depth(x)):c.lineTo(x,SS+depth(x));c.stroke();c.setLineDash([]);
+  // surface currents (westward)
+  c.strokeStyle='rgba(255,255,255,0.9)';c.lineWidth=2.5;c.lineCap='round';
+  for(const p of cur){const d=depth(p.x),y=SS+6+p.f*Math.max(4,d*0.6);const L=lerp(16,8,k);c.beginPath();c.moveTo(p.x,y);c.lineTo(p.x+L,y);c.stroke();}
+  // upwelling (east)
+  const ua=lerp(1,0.25,k);
+  for(const u of upw){const lane=u.lane;const x0=560+lane*40,x1=650+lane*18;
+    const s=u.s,x=lerp(x0,x1,s),y=lerp(BOT-12,SS+6,Math.pow(s,0.9));
+    c.globalAlpha=ua*(s<0.1?s*10:s>0.9?(1-s)*10:1);c.fillStyle='#BFE3FF';c.beginPath();c.arc(x,y,4,0,7);c.fill();}
+  c.globalAlpha=1;
+  arrow(600,BOT-18,676,SS+30,`rgba(191,227,255,${ua})`,lerp(5,2,k),14);
+  // land
+  c.fillStyle='#8C6A47';c.fillRect(40,SS-14,XW-40,BOT-SS+14);c.fillRect(XE,SS-14,760-XE,BOT-SS+14);
+  c.fillStyle='#6FA35E';c.fillRect(40,SS-18,XW-40,6);c.fillRect(XE,SS-18,760-XE,6);
+  // ocean labels
+  c.font="17px "+F;c.fillStyle='#7A3A10';c.textAlign='left';c.fillText('따뜻한 해수층',XW+12,SS+depth(XW+12)/2+4);
+  c.fillStyle='#DDEBFA';c.fillText('차가운 해수',XW+12,BOT-20);
+  c.textAlign='right';c.fillStyle='#E6F3FF';c.fillText(k<0.5?'깊은 곳에서 차가운 해수가 올라옴':'차가운 해수가 올라오는 흐름 약해짐',XE-10,BOT-20);
+  {const t='← 표층 해수의 흐름'+(k<0.5?'':' 약해짐');c.font="16px "+F;const w=c.measureText(t).width+16;c.fillStyle='rgba(122,58,16,0.75)';rr(400-w/2,SS+4,w,22,11);c.fill();c.fillStyle='#fff';c.textAlign='center';c.fillText(t,400,SS+15);}
+  // trade winds
+  const wl=lerp(46,22,k),wa=lerp(0.95,0.55,k);
+  for(const w of wind){c.globalAlpha=wa;arrow(w.x+wl,SS-26,w.x,SS-26,'#3E6E9E',lerp(4,2.5,k),11);}c.globalAlpha=1;
+  c.font="18px "+F;c.textAlign='center';const wt=k<0.5?'무역풍 (동 → 서)':'무역풍 약해짐';
+  const tw=c.measureText(wt).width+20;c.fillStyle='rgba(255,255,255,0.9)';rr(400-tw/2,SS-62,tw,26,13);c.fill();c.fillStyle='#3E6E9E';c.fillText(wt,400,SS-49);
+  // atmosphere: rising (cloud+rain) and sinking (sun)
+  const xr=lerp(205,575,k), xs=lerp(575,205,k);
+  for(const r of rain){c.strokeStyle='rgba(47,125,196,0.75)';c.lineWidth=2;c.beginPath();c.moveTo(xr+r.dx,r.y);c.lineTo(xr+r.dx-2,r.y+9);c.stroke();}
+  cloud(xr,150,1);
+  for(const r of rise){if(r.s>0.375)continue;const q=r.s/0.375;const y=lerp(SS-45,185,q);c.globalAlpha=Math.min(1,Math.sin(q*Math.PI)*1.6);arrow(xr+72,y+22,xr+72,y,'#2F7DC4',4,11);}
+  for(const r of rise){if(r.s>0.375)continue;const q=r.s/0.375;const y=lerp(165,SS-45,q);c.globalAlpha=Math.min(1,Math.sin(q*Math.PI)*1.6);arrow(xs+50,y-22,xs+50,y,'#D9822B',4,11);}
+  c.globalAlpha=1;sun(xs,135,1);
+  pill(xr,108,'상승 기류 · 비','#2F7DC4');pill(xs,180,'하강 기류 · 건조','#D9822B');
+  // directions
+  c.fillStyle=INK;c.font="20px "+F;c.textAlign='left';c.fillText('서',48,108);c.textAlign='right';c.fillText('동',752,108);
+  c.fillStyle='#8a97a8';c.font="15px "+F;c.textAlign='center';c.fillText('(차이를 크게 그림)',420,BOT+11);
+  c.fillStyle='#6b5a48';c.font="16px "+F;c.textAlign='left';c.fillText('◀ 동남아시아·오스트레일리아 쪽',40,BOT+11);c.textAlign='right';c.fillText('남아메리카 쪽 ▶',760,BOT+11);
+  // info boxes
+  const W0=mode?['따뜻한 해수층의 두께가 얇아짐','수온 낮아짐 → 하강 기류','→ 강수량 감소 (가뭄·산불)']:['따뜻한 해수가 두껍게 쌓임','따뜻한 해수에 가열된 공기 상승','→ 비가 자주 내림'];
+  const E0=mode?['차가운 해수가 올라오는 흐름 약해짐','수온 평상시보다 높아짐 → 상승 기류','→ 강수량 증가 (홍수)']:['깊은 곳에서 차가운 해수가 올라옴','해수면 온도 낮음 → 하강 기류','→ 기온 낮고 건조한 날씨'];
+  box(30,472,'서태평양 적도 부근',W0);box(410,472,'동태평양 적도 부근',E0);
+  if(paused){c.fillStyle='rgba(36,50,74,0.8)';rr(VW-188,8,180,32,10);c.fill();c.fillStyle='#fff';c.font="17px "+F;c.textAlign='center';c.fillText('일시정지 · 클릭하면 재생',VW-98,25);}
+}
+function pill(x,y,t,col){c.font="17px "+F;const w=c.measureText(t).width+18;c.fillStyle=col;rr(x-w/2,y-13,w,26,13);c.fill();c.fillStyle='#fff';c.textAlign='center';c.fillText(t,x,y+1);}
+function box(x,y,h,lines){c.fillStyle='#fff';rr(x,y,360,122,14);c.fill();c.strokeStyle=mode?WARM:TEAL;c.lineWidth=2;c.stroke();
+  c.fillStyle=mode?WARM:TEAL;c.font="19px "+F;c.textAlign='left';c.fillText(h,x+16,y+20);
+  c.fillStyle=INK;c.font="18px "+F;lines.forEach((l,i)=>c.fillText(l,x+16,y+50+i*27));}
+function loop(now){const dt=Math.min(0.05,Math.max(0,(now-last)/1000));last=now;if(!paused){T+=dt;update(dt);}draw();requestAnimationFrame(loop);}
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>requestAnimationFrame(loop));
+</script>
+</body>
+</html>
