@@ -1,0 +1,78 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ⅱ. 환경과 에너지</title>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF9F0;--coral:#E3614A;--navy:#35415A;--pink:#F8D3CA;--line:#EADFD2}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--cream);color:var(--navy);font-family:'Do Hyeon','Malgun Gothic',sans-serif}
+body{display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px 6px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(20px,2.6vw,30px);font-weight:400}
+.sub{font-size:15px;color:#8C8C96}
+.tools{margin-left:auto;display:flex;gap:8px}
+.tools button,.tools a{border:2px solid var(--navy);background:#fff;color:var(--navy);border-radius:999px;padding:6px 14px;font:inherit;font-size:16px;cursor:pointer;text-decoration:none}
+nav{display:flex;gap:8px;padding:4px 16px;flex-wrap:wrap}
+nav button{border:none;border-radius:999px;font:inherit;cursor:pointer;padding:8px 16px}
+#units button{background:var(--pink);color:var(--navy);font-size:clamp(16px,1.8vw,21px)}
+#units button.on{background:var(--coral);color:#fff}
+#apps{padding-bottom:8px}
+#apps button{background:#fff;border:2px solid var(--line);color:var(--navy);font-size:clamp(15px,1.6vw,19px)}
+#apps button.on{border-color:var(--navy);background:var(--navy);color:#fff}
+main{flex:1;padding:0 12px 12px;display:flex;min-height:0}
+iframe{flex:1;width:100%;border:3px solid var(--line);border-radius:16px;background:var(--cream)}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;font-size:24px;color:#8C8C96}
+</style></head><body>
+<header><h1>Ⅱ. 환경과 에너지</h1><span class="sub">통합과학2</span>
+<div class="tools"><a id="newwin" target="_blank" rel="noopener">새 창</a><button id="full">전체 화면</button></div></header>
+<nav id="units"></nav><nav id="apps"></nav>
+<main id="stage"></main>
+<script>
+/* ===== 단원·웹앱 목록 =====
+   새 단원을 추가할 때는 아래 UNITS 배열 끝에 한 덩어리를 추가한다.
+   id: 주소에 쓰이는 짧은 이름(#02-1 처럼 바로 열기 가능), file: 이 폴더 기준 경로 */
+const UNITS = [
+ {
+  "id": "03",
+  "name": "03. 지구 환경의 변화",
+  "apps": [
+   {
+    "title": "온실 효과",
+    "file": "03/earth-greenhouse.html"
+   },
+   {
+    "title": "지구 열수지",
+    "file": "03/earth-heat-budget.html"
+   },
+   {
+    "title": "지구 온난화",
+    "file": "03/earth-global-warming.html"
+   },
+   {
+    "title": "대기 대순환",
+    "file": "03/earth-desert-circulation.html"
+   },
+   {
+    "title": "엘니뇨",
+    "file": "03/earth-el-nino.html"
+   }
+  ]
+ }
+];
+/* ======================== */
+const $u=document.getElementById('units'),$a=document.getElementById('apps'),$s=document.getElementById('stage'),$n=document.getElementById('newwin');
+let cu=0,ca=0;
+function parseHash(){const h=decodeURIComponent(location.hash.slice(1));if(!h)return;const [u,a]=h.split('-');const i=UNITS.findIndex(x=>x.id===u);if(i>=0){cu=i;ca=Math.max(0,Math.min((+a||1)-1,UNITS[i].apps.length-1));}}
+function render(){
+  $u.innerHTML='';UNITS.forEach((u,i)=>{const b=document.createElement('button');b.textContent=u.name;if(i===cu)b.className='on';b.onclick=()=>{cu=i;ca=0;go();};$u.appendChild(b);});
+  const U=UNITS[cu];$a.innerHTML='';
+  if(!U){$s.innerHTML='<div class="empty">아직 등록된 웹앱이 없습니다.</div>';return;}
+  U.apps.forEach((p,i)=>{const b=document.createElement('button');b.textContent=(i+1)+'. '+p.title;if(i===ca)b.className='on';b.onclick=()=>{ca=i;go();};$a.appendChild(b);});
+  const P=U.apps[ca];$s.innerHTML='';const f=document.createElement('iframe');f.src=P.file;f.title=P.title;f.allow='fullscreen';$s.appendChild(f);$n.href=P.file;
+}
+function go(){history.replaceState(null,'','#'+UNITS[cu].id+'-'+(ca+1));render();}
+document.getElementById('full').onclick=()=>{const f=document.querySelector('iframe');if(f&&f.requestFullscreen)f.requestFullscreen();};
+window.addEventListener('hashchange',()=>{parseHash();render();});
+parseHash();cu=Math.min(cu,UNITS.length-1);ca=UNITS[cu]?ca:0;
+if(UNITS.length)go();else render();
+</script></body></html>
